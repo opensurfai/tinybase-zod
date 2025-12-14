@@ -1,0 +1,53 @@
+{
+  "name": "tinybase-zod",
+  "version": "0.1.0",
+  "description": "A typed TinyBase Store wrapper with a Zod-backed encode/decode API.",
+  "license": "MIT",
+  "author": "David Peek <team@opensurf.ai>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opensurfai/tinybase-zod.git"
+  },
+  "bugs": {
+    "url": "https://github.com/opensurfai/tinybase-zod/issues"
+  },
+  "homepage": "https://github.com/opensurfai/tinybase-zod#readme",
+  "keywords": [
+    "tinybase",
+    "zod",
+    "typescript",
+    "schema",
+    "typed-store"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "private": false,
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run test && bun run check && bun run build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "tinybase": "^7.1.0",
+    "zod": "^4.1.13",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "tinybase": "^7.1.0",
+    "zod": "^4.1.13"
+  }
+}
