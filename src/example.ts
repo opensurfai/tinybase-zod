@@ -37,43 +37,33 @@ typedStore.setRow("examples", "1", {
   array: ["a"],
 });
 
-const table = typedStore.getTable("examples");
-console.log(table);
+const encodedRow = store.getRow("examples", "1");
+/* complex cells are json encoded
+{
+  string: "s",
+  nullableString: "s",
+  number: 1,
+  enum: "a",
+  object: "{\"a\":\"s\"}",
+  array: "[\"a\"]",
+}
+*/
 
-typedStore.addCellListener(
-  "examples",
-  "2",
-  "array",
-  (store, tableId, rowId, cellId, newCell, oldCell) => {}
-);
-typedStore.addCellListener(null, "2", "array", (store) => {});
-// const encodedRow = store.getRow("examples", "1");
-// /* complex cells are json encoded
-// {
-//   string: "s",
-//   nullableString: "s",
-//   number: 1,
-//   enum: "a",
-//   object: "{\"a\":\"s\"}",
-//   array: "[\"a\"]",
-// }
-// */
+const decodedRow = typedStore.getRow("examples", "1");
+/* decoded to complex types
+{
+  string: "s",
+  nullableString: "s",
+  number: 1,
+  enum: "a",
+  object: {
+    a: "s",
+  },
+  array: [ "a" ],
+}
+*/
 
-// const decodedRow = typedStore.getRow("examples", "1");
-// /* decoded to complex types
-// {
-//   string: "s",
-//   nullableString: "s",
-//   number: 1,
-//   enum: "a",
-//   object: {
-//     a: "s",
-//   },
-//   array: [ "a" ],
-// }
-// */
-
-// // works for cells too
-// typedStore.setCell("examples", "1", "object", { a: "b" });
-// const cell = typedStore.getCell("examples", "1", "object");
-// // { a: "b" }
+// works for cells too
+typedStore.setCell("examples", "1", "object", { a: "b" });
+const cell = typedStore.getCell("examples", "1", "object");
+// { a: "b" }
