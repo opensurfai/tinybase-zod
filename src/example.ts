@@ -1,26 +1,21 @@
 import { createStore } from "tinybase";
+import { createTypedStore, dateAsIso, json } from "tinybase-zod";
 import z from "zod";
-import { createTypedStore } from "./store";
 
-const exampleSchema = z.object({
-  string: z.string(),
-  nullableString: z.string().nullable(),
-  number: z.number(),
-  enum: z.enum(["a", "b"]),
-  object: z.object({
-    a: z.string(),
-  }),
-  array: z.array(z.string()),
-});
-
-const secondSchema = z.object({
-  seconds: z.number(),
+const userSchema = z.object({
+  name: z.string(),
+  email: z.email(),
+  createdAt: dateAsIso,
+  preferences: json(
+    z.object({
+      theme: z.enum(["light", "dark"]),
+    })
+  ),
 });
 
 const schema = {
   tables: {
-    examples: exampleSchema,
-    seconds: secondSchema,
+    users: userSchema,
   },
   values: z.object({}),
 } as const;
@@ -28,42 +23,45 @@ const schema = {
 const store = createStore();
 const typedStore = createTypedStore(store, schema);
 
-typedStore.setRow("examples", "1", {
-  string: "s",
-  nullableString: "s",
-  number: 1,
-  enum: "a",
-  object: { a: "s" },
-  array: ["a"],
+typedStore.setRow("users", "1", {
+  name: "David",
+  email: "team@opensurf.ai",
+  createdAt: new Date(),
+  preferences: { theme: "dark" },
 });
 
-const encodedRow = store.getRow("examples", "1");
-/* complex cells are json encoded
+// complex cells are encoded on set
+const encodedRow = store.getRow("users", "1");
+console.log(encodedRow);
+/* 
 {
-  string: "s",
-  nullableString: "s",
-  number: 1,
-  enum: "a",
-  object: "{\"a\":\"s\"}",
-  array: "[\"a\"]",
+  name: "David",
+  email: "team@opensurf.ai",
+  createdAt: "2025-12-14T23:01:09.242Z",
+  preferences: "{\"theme\":\"dark\"}",
 }
 */
 
-const decodedRow = typedStore.getRow("examples", "1");
-/* decoded to complex types
+// and decoded on get
+const decodedRow = typedStore.getRow("users", "1");
+console.log(decodedRow);
+/*
 {
-  string: "s",
-  nullableString: "s",
-  number: 1,
-  enum: "a",
-  object: {
-    a: "s",
+  name: "David",
+  email: "team@opensurf.ai",
+  createdAt: 2025-12-14T23:01:09.242Z,
+  preferences: {
+    theme: "dark",
   },
-  array: [ "a" ],
 }
 */
 
-// works for cells too
-typedStore.setCell("examples", "1", "object", { a: "b" });
-const cell = typedStore.getCell("examples", "1", "object");
-// { a: "b" }
+// and for cell / table / listner apis too
+typedStore.setCell("users", "1", "preferences", { theme: "light" });
+const cell = typedStore.getCell("users", "1", "preferences");
+console.log(cell);
+/*
+{
+  theme: "light",
+}
+*/
