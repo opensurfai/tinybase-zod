@@ -169,6 +169,14 @@ export function createTypedStore<Schema extends StoreSchema>(
     return schema.decode(row);
   }
 
+  function getRowOrThrow(tableId: Id, rowId: Id) {
+    const row = getRow(tableId, rowId);
+    if (row === undefined) {
+      throw new Error(`Row not found: ${tableId}.${rowId}`);
+    }
+    return row;
+  }
+
   function setRow(tableId: Id, rowId: Id, row: unknown) {
     const schema = getRowSchema(tableId);
     const encoded = schema.encode(row as any) as Record<string, unknown>;
@@ -178,6 +186,11 @@ export function createTypedStore<Schema extends StoreSchema>(
       encodeRow(encoded, `tables.${tableId}.${rowId}`)
     );
     return typedStore;
+  }
+
+  function setPartialRow(tableId: Id, rowId: Id, update: Partial<unknown>) {
+    const row = getRowOrThrow(tableId, rowId);
+    setRow(tableId, rowId, { ...row, ...update });
   }
 
   function delRow(tableId: Id, rowId: Id) {
@@ -852,7 +865,9 @@ export function createTypedStore<Schema extends StoreSchema>(
     setTable,
     delTable,
     getRow,
+    getRowOrThrow,
     setRow,
+    setPartialRow,
     delRow,
     getCell,
     setCell,

@@ -202,10 +202,19 @@ export interface TypedStore<Schema extends StoreSchema> {
     tableId: TableId,
     rowId: Id
   ): RowOf<Schema, TableId> | undefined;
+  getRowOrThrow<TableId extends TableIdOf<Schema>>(
+    tableId: TableId,
+    rowId: Id
+  ): RowOf<Schema, TableId>;
   setRow<TableId extends TableIdOf<Schema>>(
     tableId: TableId,
     rowId: Id,
     row: RowOf<Schema, TableId>
+  ): TypedStore<Schema>;
+  setPartialRow<TableId extends TableIdOf<Schema>>(
+    tableId: TableId,
+    rowId: Id,
+    row: Partial<RowOf<Schema, TableId>>
   ): TypedStore<Schema>;
   delRow<TableId extends TableIdOf<Schema>>(
     tableId: TableId,

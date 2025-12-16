@@ -49,6 +49,27 @@ test("getRow/setRow/delRow (encode/decode + missing row semantics)", () => {
   typed.delRow("t", "1");
   expect(typed.getRow("t", "1")).toEqual(undefined);
   expect(typed.hasRow("t", "1")).toBe(false);
+
+  // getRowOrThrow throws if row is missing
+  expect(() => typed.getRowOrThrow("t", "missing")).toThrow(
+    "Row not found: t.missing"
+  );
+  // getRowOrThrow returns row if it exists
+  typed.setRow("t", "1", { s: "a", n: 1, o: { s: "x" } });
+  expect(typed.getRowOrThrow("t", "1")).toEqual({
+    s: "a",
+    n: 1,
+    o: { s: "x" },
+  });
+
+  // setPartialRow updates row
+  typed.setPartialRow("t", "1", { s: "b" });
+  expect(typed.getRow("t", "1")).toEqual({ s: "b", n: 1, o: { s: "x" } });
+
+  // setPartialRow throws if row is missing
+  expect(() => typed.setPartialRow("t", "missing", { s: "b" })).toThrow(
+    "Row not found: t.missing"
+  );
 });
 
 test("getRowIds + hasRow", () => {
