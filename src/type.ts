@@ -18,12 +18,12 @@ export type StoreSchema = {
   values: StoreValuesSchema;
 };
 
-type TableIdOf<Schema extends StoreSchema> = Extract<
+export type TableIdOf<Schema extends StoreSchema> = Extract<
   keyof Schema["tables"],
   string
 >;
 
-type CellIdOf<
+export type CellIdOf<
   Schema extends StoreSchema,
   TableId extends TableIdOf<Schema>
 > = Extract<keyof RowOf<Schema, TableId>, string>;
@@ -145,7 +145,7 @@ type CellListener<
     | undefined
 ) => void;
 
-type ValueIdOf<Schema extends StoreSchema> =
+export type ValueIdOf<Schema extends StoreSchema> =
   Schema["values"] extends StoreValuesSchema
     ? Extract<keyof z.infer<Schema["values"]>, string>
     : string;
