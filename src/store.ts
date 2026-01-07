@@ -64,28 +64,34 @@ function encodeTable(
   return out;
 }
 
-export function createTypedStore<Schema extends StoreSchema>(
-  store: Store,
-  schema: Schema
-): TypedStore<Schema> {
-  return createTypedStoreInternal(store, schema) as TypedStore<Schema>;
+export function createTypedStore<
+  Schema extends StoreSchema,
+  UntypedStore extends Store = Store
+>(store: UntypedStore, schema: Schema): TypedStore<Schema, UntypedStore> {
+  return createTypedStoreInternal(store, schema) as TypedStore<
+    Schema,
+    UntypedStore
+  >;
 }
 
-export function createReadonlyTypedStore<Schema extends StoreSchema>(
-  store: Store,
+export function createReadonlyTypedStore<
+  Schema extends StoreSchema,
+  UntypedStore extends Store = Store
+>(
+  store: UntypedStore,
   schema: Schema
-): ReadonlyTypedStore<Schema> {
+): ReadonlyTypedStore<Schema, UntypedStore> {
   // Type-only readonly: this is for developer ergonomics, not runtime safety.
-  return createTypedStore(
-    store,
-    schema
-  ) as unknown as ReadonlyTypedStore<Schema>;
+  return createTypedStore(store, schema) as unknown as ReadonlyTypedStore<
+    Schema,
+    UntypedStore
+  >;
 }
 
-function createTypedStoreInternal<Schema extends StoreSchema>(
-  store: Store,
-  schema: Schema
-) {
+function createTypedStoreInternal<
+  Schema extends StoreSchema,
+  UntypedStore extends Store
+>(store: UntypedStore, schema: Schema) {
   const mapped = schema;
   let self: any;
 
@@ -655,7 +661,7 @@ function createTypedStoreInternal<Schema extends StoreSchema>(
       const [sortedArgs, listener, mutatorFlag] = args as [
         SortedRowIdsArgs,
         (
-          store: TypedStore<Schema>,
+          store: TypedStore<Schema, UntypedStore>,
           tableId: Id,
           cellId: Id | undefined,
           descending: boolean,
@@ -689,7 +695,7 @@ function createTypedStoreInternal<Schema extends StoreSchema>(
         number,
         number | undefined,
         (
-          store: TypedStore<Schema>,
+          store: TypedStore<Schema, UntypedStore>,
           tableId: Id,
           cellId: Id | undefined,
           descending: boolean,
@@ -852,7 +858,8 @@ function createTypedStoreInternal<Schema extends StoreSchema>(
     );
   }
 
-  const asReadonly = () => self as unknown as ReadonlyTypedStore<Schema>;
+  const asReadonly = () =>
+    self as unknown as ReadonlyTypedStore<Schema, UntypedStore>;
 
   const api = {
     untyped: store,
@@ -918,5 +925,5 @@ function createTypedStoreInternal<Schema extends StoreSchema>(
   };
 
   self = api;
-  return api as unknown as TypedStore<Schema>;
+  return api as unknown as TypedStore<Schema, UntypedStore>;
 }

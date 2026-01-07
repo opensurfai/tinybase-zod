@@ -507,15 +507,27 @@ interface StoreWriteApi<Schema extends StoreSchema, Self> {
   delValue<ValueId extends ValueIdOf<Schema>>(valueId: ValueId): Self;
 }
 
-export interface TypedStore<Schema extends StoreSchema>
-  extends StoreReadApi<Schema, TypedStore<Schema>, boolean | undefined>,
-    StoreWriteApi<Schema, TypedStore<Schema>> {
-  untyped: Store;
-  asReadonly(): ReadonlyTypedStore<Schema>;
+export interface TypedStore<
+  Schema extends StoreSchema,
+  UntypedStore extends Store = Store
+> extends StoreReadApi<
+    Schema,
+    TypedStore<Schema, UntypedStore>,
+    boolean | undefined
+  >,
+    StoreWriteApi<Schema, TypedStore<Schema, UntypedStore>> {
+  untyped: UntypedStore;
+  asReadonly(): ReadonlyTypedStore<Schema, UntypedStore>;
 }
 
-export interface ReadonlyTypedStore<Schema extends StoreSchema>
-  extends StoreReadApi<Schema, ReadonlyTypedStore<Schema>, false | undefined> {
-  untyped: Store;
-  asReadonly(): ReadonlyTypedStore<Schema>;
+export interface ReadonlyTypedStore<
+  Schema extends StoreSchema,
+  UntypedStore extends Store = Store
+> extends StoreReadApi<
+    Schema,
+    ReadonlyTypedStore<Schema, UntypedStore>,
+    false | undefined
+  > {
+  untyped: UntypedStore;
+  asReadonly(): ReadonlyTypedStore<Schema, UntypedStore>;
 }

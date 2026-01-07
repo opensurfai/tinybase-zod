@@ -1,6 +1,6 @@
 {
   "name": "tinybase-zod",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A typed TinyBase Store wrapper with a Zod-backed encode/decode API.",
   "license": "MIT",
   "author": "David Peek <team@opensurf.ai>",

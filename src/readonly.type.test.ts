@@ -1,5 +1,5 @@
 import { expectTypeOf, test } from "bun:test";
-import { createStore, type Store } from "tinybase";
+import { createStore, type MergeableStore, type Store } from "tinybase";
 import z from "zod";
 import { createReadonlyTypedStore, createTypedStore } from "./store";
 
@@ -26,6 +26,15 @@ test("ReadonlyTypedStore type surface", () => {
   // untyped exposes the underlying TinyBase store
   expectTypeOf(typed.untyped).toEqualTypeOf<Store>();
   expectTypeOf(ro.untyped).toEqualTypeOf<Store>();
+
+  // untyped preserves the exact underlying store subtype (e.g. MergeableStore)
+  if (false) {
+    const mergeable = null as any as MergeableStore;
+    const typedMergeable = createTypedStore(mergeable, schema);
+    const roMergeable = createReadonlyTypedStore(mergeable, schema);
+    expectTypeOf(typedMergeable.untyped).toEqualTypeOf<MergeableStore>();
+    expectTypeOf(roMergeable.untyped).toEqualTypeOf<MergeableStore>();
+  }
 
   // listener callbacks receive the readonly store
   ro.addTablesListener((store) => {
