@@ -34,6 +34,7 @@ import { createStore } from "tinybase";
 import z from "zod";
 import {
   createTypedStore,
+  createReadonlyTypedStore,
   json,
   dateAsIso,
   dateAsNumberMs,
@@ -65,6 +66,8 @@ const schema = {
 
 const store = createStore();
 const typed = createTypedStore(store, schema);
+const readonly = createReadonlyTypedStore(store, schema);
+// Or: const readonly = typed.asReadonly();
 
 // Tests typically initialize tables/values explicitly.
 store.setTables({ users: {} });
@@ -119,6 +122,19 @@ Listener callbacks wrap the underlying TinyBase listener and:
 - decode `getCellChange(...)` / `getValueChange(...)` results when those helper functions are available
 
 Mutator listeners (`mutator: true`) behave like TinyBase: they run before non-mutators and can safely update state.
+
+## Readonly typed stores
+
+If you want to expose a typed store to consumers that should **not be able to write**, use:
+
+- `createReadonlyTypedStore(store, schema)`, or
+- `typed.asReadonly()`
+
+Readonly typed stores are **type-level only** (developer ergonomics):
+
+- reads still decode the same way
+- write methods are not present on the TypeScript type
+- at runtime, the underlying object is still the same store (no security boundary)
 
 ## How to store structured data
 

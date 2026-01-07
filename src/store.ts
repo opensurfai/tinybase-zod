@@ -12,7 +12,7 @@ import {
   type Table,
 } from "tinybase";
 import { z } from "zod";
-import type { StoreSchema, TypedStore } from "./type";
+import type { ReadonlyTypedStore, StoreSchema, TypedStore } from "./type";
 
 export { json } from "./codec";
 
@@ -67,8 +67,27 @@ function encodeTable(
 export function createTypedStore<Schema extends StoreSchema>(
   store: Store,
   schema: Schema
+): TypedStore<Schema> {
+  return createTypedStoreInternal(store, schema) as TypedStore<Schema>;
+}
+
+export function createReadonlyTypedStore<Schema extends StoreSchema>(
+  store: Store,
+  schema: Schema
+): ReadonlyTypedStore<Schema> {
+  // Type-only readonly: this is for developer ergonomics, not runtime safety.
+  return createTypedStore(
+    store,
+    schema
+  ) as unknown as ReadonlyTypedStore<Schema>;
+}
+
+function createTypedStoreInternal<Schema extends StoreSchema>(
+  store: Store,
+  schema: Schema
 ) {
   const mapped = schema;
+  let self: any;
 
   function getRowSchema(tableId: Id) {
     const schema = mapped.tables[tableId as string];
@@ -132,12 +151,12 @@ export function createTypedStore<Schema extends StoreSchema>(
       encoded[tableId] = encodeTable(encodedTable, `tables.${tableId}`);
     }
     store.setTables(encoded as any);
-    return typedStore;
+    return self;
   }
 
   function delTables() {
     store.delTables();
-    return typedStore;
+    return self;
   }
 
   function getTable(tableId: Id) {
@@ -152,12 +171,12 @@ export function createTypedStore<Schema extends StoreSchema>(
       .record(z.string(), schema)
       .encode(table as any) as Record<string, Record<string, unknown>>;
     store.setTable(tableId, encodeTable(encodedTable, `tables.${tableId}`));
-    return typedStore;
+    return self;
   }
 
   function delTable(tableId: Id) {
     store.delTable(tableId);
-    return typedStore;
+    return self;
   }
 
   function getRow(tableId: Id, rowId: Id) {
@@ -185,17 +204,18 @@ export function createTypedStore<Schema extends StoreSchema>(
       rowId,
       encodeRow(encoded, `tables.${tableId}.${rowId}`)
     );
-    return typedStore;
+    return self;
   }
 
   function setPartialRow(tableId: Id, rowId: Id, update: Partial<unknown>) {
     const row = getRowOrThrow(tableId, rowId);
     setRow(tableId, rowId, { ...row, ...update });
+    return self;
   }
 
   function delRow(tableId: Id, rowId: Id) {
     store.delRow(tableId, rowId);
-    return typedStore;
+    return self;
   }
 
   function getCell(tableId: Id, rowId: Id, cellId: Id) {
@@ -227,21 +247,21 @@ export function createTypedStore<Schema extends StoreSchema>(
         return nextEncoded as any;
       };
       store.setCell(tableId, rowId, cellId, mapCell as any);
-      return typedStore;
+      return self;
     }
     const encoded = schema.encode(cell);
     assertStorageCell(encoded, `tables.${tableId}.${rowId}.${cellId}`);
     if (encoded === undefined) {
       store.delCell(tableId, rowId, cellId);
-      return typedStore;
+      return self;
     }
     store.setCell(tableId, rowId, cellId, encoded as any);
-    return typedStore;
+    return self;
   }
 
   function delCell(tableId: Id, rowId: Id, cellId: Id) {
     store.delCell(tableId, rowId, cellId);
-    return typedStore;
+    return self;
   }
 
   function hasTables() {
@@ -298,22 +318,22 @@ export function createTypedStore<Schema extends StoreSchema>(
 
   function startTransaction() {
     store.startTransaction();
-    return typedStore;
+    return self;
   }
 
   function finishTransaction(doRollback?: DoRollback) {
     store.finishTransaction(doRollback);
-    return typedStore;
+    return self;
   }
 
   function callListener(listenerId: Id) {
     store.callListener(listenerId);
-    return typedStore;
+    return self;
   }
 
   function delListener(listenerId: Id) {
     store.delListener(listenerId);
-    return typedStore;
+    return self;
   }
 
   function getJson(): Json {
@@ -322,7 +342,7 @@ export function createTypedStore<Schema extends StoreSchema>(
 
   function setJson(tablesAndValuesJson: Json) {
     store.setJson(tablesAndValuesJson);
-    return typedStore;
+    return self;
   }
 
   function getValues() {
@@ -352,12 +372,12 @@ export function createTypedStore<Schema extends StoreSchema>(
     }
 
     store.setValues(encoded as any);
-    return typedStore;
+    return self;
   }
 
   function delValues() {
     store.delValues();
-    return typedStore;
+    return self;
   }
 
   function getValue(valueId: Id) {
@@ -377,7 +397,7 @@ export function createTypedStore<Schema extends StoreSchema>(
     const valueSchema = tryGetValueSchema(valueId);
     // If schema is present, ignore unknown value ids (Option A).
     if (!valueSchema) {
-      return typedStore;
+      return self;
     }
 
     if (typeof value === "function") {
@@ -393,22 +413,22 @@ export function createTypedStore<Schema extends StoreSchema>(
         return nextEncoded as any;
       };
       store.setValue(valueId, mapValue as any);
-      return typedStore;
+      return self;
     }
 
     const encoded = valueSchema.encode(value);
     assertStorageCell(encoded, `values.${valueId}`);
     if (encoded === undefined) {
       store.delValue(valueId);
-      return typedStore;
+      return self;
     }
     store.setValue(valueId, encoded as any);
-    return typedStore;
+    return self;
   }
 
   function delValue(valueId: Id) {
     store.delValue(valueId);
-    return typedStore;
+    return self;
   }
 
   function hasValues() {
@@ -429,16 +449,16 @@ export function createTypedStore<Schema extends StoreSchema>(
   }
 
   function addValuesListener(
-    listener: (store: TypedStore<Schema>) => void,
+    listener: (store: any) => void,
     mutator?: boolean
   ): Id {
-    return store.addValuesListener((_store) => listener(typedStore), mutator);
+    return store.addValuesListener((_store) => listener(self), mutator);
   }
 
   function addValueListener(
     valueId: IdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: any,
       valueId: Id,
       newValue: unknown,
       oldValue: unknown,
@@ -485,7 +505,7 @@ export function createTypedStore<Schema extends StoreSchema>(
         }
 
         listener(
-          typedStore,
+          self,
           changedValueId,
           decodedNewValue,
           decodedOldValue,
@@ -497,60 +517,53 @@ export function createTypedStore<Schema extends StoreSchema>(
   }
 
   function addValueIdsListener(
-    listener: (
-      store: TypedStore<Schema>,
-      getIdChanges: GetIdChanges | undefined
-    ) => void,
+    listener: (store: any, getIdChanges: GetIdChanges | undefined) => void,
     mutator?: boolean
   ): Id {
     return store.addValueIdsListener(
-      (_store, getIdChanges) => listener(typedStore, getIdChanges),
+      (_store, getIdChanges) => listener(self, getIdChanges),
       mutator
     );
   }
 
   function addHasValuesListener(
-    listener: (store: TypedStore<Schema>, hasValues: boolean) => void,
+    listener: (store: any, hasValues: boolean) => void,
     mutator?: boolean
   ): Id {
     return store.addHasValuesListener(
-      (_store, hasValues) => listener(typedStore, hasValues),
+      (_store, hasValues) => listener(self, hasValues),
       mutator
     );
   }
 
   function addHasValueListener(
     valueId: IdOrNull,
-    listener: (
-      store: TypedStore<Schema>,
-      valueId: Id,
-      hasValue: boolean
-    ) => void,
+    listener: (store: any, valueId: Id, hasValue: boolean) => void,
     mutator?: boolean
   ): Id {
     return store.addHasValueListener(
       valueId,
       (_store, changedValueId, hasValue) =>
-        listener(typedStore, changedValueId, hasValue),
+        listener(self, changedValueId, hasValue),
       mutator
     );
   }
 
   function addTablesListener(
-    listener: (store: TypedStore<Schema>) => void,
+    listener: (store: any) => void,
     mutator?: boolean
   ): Id {
-    return store.addTablesListener((_store) => listener(typedStore), mutator);
+    return store.addTablesListener((_store) => listener(self), mutator);
   }
 
   function addTableListener(
     tableId: IdOrNull,
-    listener: (store: TypedStore<Schema>, tableId: Id) => void,
+    listener: (store: any, tableId: Id) => void,
     mutator?: boolean
   ): Id {
     return store.addTableListener(
       tableId,
-      (_store, changedTableId) => listener(typedStore, changedTableId),
+      (_store, changedTableId) => listener(self, changedTableId),
       mutator
     );
   }
@@ -558,27 +571,24 @@ export function createTypedStore<Schema extends StoreSchema>(
   function addRowListener(
     tableId: IdOrNull,
     rowId: IdOrNull,
-    listener: (store: TypedStore<Schema>, tableId: Id, rowId: Id) => void,
+    listener: (store: any, tableId: Id, rowId: Id) => void,
     mutator?: boolean
   ): Id {
     return store.addRowListener(
       tableId,
       rowId,
       (_store, changedTableId, changedRowId) =>
-        listener(typedStore, changedTableId, changedRowId),
+        listener(self, changedTableId, changedRowId),
       mutator
     );
   }
 
   function addTableIdsListener(
-    listener: (
-      store: TypedStore<Schema>,
-      getIdChanges: GetIdChanges | undefined
-    ) => void,
+    listener: (store: any, getIdChanges: GetIdChanges | undefined) => void,
     mutator?: boolean
   ): Id {
     return store.addTableIdsListener(
-      (_store, getIdChanges) => listener(typedStore, getIdChanges),
+      (_store, getIdChanges) => listener(self, getIdChanges),
       mutator
     );
   }
@@ -586,7 +596,7 @@ export function createTypedStore<Schema extends StoreSchema>(
   function addTableCellIdsListener(
     tableId: IdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: any,
       tableId: Id,
       getIdChanges: GetIdChanges | undefined
     ) => void,
@@ -595,7 +605,7 @@ export function createTypedStore<Schema extends StoreSchema>(
     return store.addTableCellIdsListener(
       tableId,
       (_store, changedTableId, getIdChanges) =>
-        listener(typedStore, changedTableId, getIdChanges),
+        listener(self, changedTableId, getIdChanges),
       mutator
     );
   }
@@ -603,7 +613,7 @@ export function createTypedStore<Schema extends StoreSchema>(
   function addRowIdsListener(
     tableId: IdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: any,
       tableId: Id,
       getIdChanges: GetIdChanges | undefined
     ) => void,
@@ -612,7 +622,7 @@ export function createTypedStore<Schema extends StoreSchema>(
     return store.addRowIdsListener(
       tableId,
       (_store, changedTableId, getIdChanges) =>
-        listener(typedStore, changedTableId, getIdChanges),
+        listener(self, changedTableId, getIdChanges),
       mutator
     );
   }
@@ -621,7 +631,7 @@ export function createTypedStore<Schema extends StoreSchema>(
     tableId: IdOrNull,
     rowId: IdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: any,
       tableId: Id,
       rowId: Id,
       getIdChanges: GetIdChanges | undefined
@@ -632,7 +642,7 @@ export function createTypedStore<Schema extends StoreSchema>(
       tableId,
       rowId,
       (_store, changedTableId, changedRowId, getIdChanges) =>
-        listener(typedStore, changedTableId, changedRowId, getIdChanges),
+        listener(self, changedTableId, changedRowId, getIdChanges),
       mutator
     );
   }
@@ -642,7 +652,7 @@ export function createTypedStore<Schema extends StoreSchema>(
     // - (tableId, cellId, descending, offset, limit, listener, mutator?)
     // - (args, listener, mutator?)
     if (typeof args[0] === "object") {
-      const [sortedArgs, listener, mutator] = args as [
+      const [sortedArgs, listener, mutatorFlag] = args as [
         SortedRowIdsArgs,
         (
           store: TypedStore<Schema>,
@@ -659,7 +669,7 @@ export function createTypedStore<Schema extends StoreSchema>(
         sortedArgs,
         (_store, tableId, cellId, descending, offset, limit, sortedRowIds) =>
           listener(
-            typedStore,
+            self,
             tableId,
             cellId,
             descending,
@@ -667,11 +677,11 @@ export function createTypedStore<Schema extends StoreSchema>(
             limit,
             sortedRowIds
           ),
-        mutator
+        mutatorFlag
       );
     }
 
-    const [tableId, cellId, descending, offset, limit, listener, mutator] =
+    const [tableId, cellId, descending, offset, limit, listener, mutatorFlag] =
       args as [
         Id,
         Id | undefined,
@@ -698,7 +708,7 @@ export function createTypedStore<Schema extends StoreSchema>(
       limit,
       (_store, tableId, cellId, descending, offset, limit, sortedRowIds) =>
         listener(
-          typedStore,
+          self,
           tableId,
           cellId,
           descending,
@@ -706,33 +716,29 @@ export function createTypedStore<Schema extends StoreSchema>(
           limit,
           sortedRowIds
         ),
-      mutator
+      mutatorFlag
     );
   }
 
   function addHasTablesListener(
-    listener: (store: TypedStore<Schema>, hasTables: boolean) => void,
+    listener: (store: any, hasTables: boolean) => void,
     mutator?: boolean
   ): Id {
     return store.addHasTablesListener(
-      (_store, hasTables) => listener(typedStore, hasTables),
+      (_store, hasTables) => listener(self, hasTables),
       mutator
     );
   }
 
   function addHasTableListener(
     tableId: IdOrNull,
-    listener: (
-      store: TypedStore<Schema>,
-      tableId: Id,
-      hasTable: boolean
-    ) => void,
+    listener: (store: any, tableId: Id, hasTable: boolean) => void,
     mutator?: boolean
   ): Id {
     return store.addHasTableListener(
       tableId,
       (_store, changedTableId, hasTable) =>
-        listener(typedStore, changedTableId, hasTable),
+        listener(self, changedTableId, hasTable),
       mutator
     );
   }
@@ -740,19 +746,14 @@ export function createTypedStore<Schema extends StoreSchema>(
   function addHasRowListener(
     tableId: IdOrNull,
     rowId: IdOrNull,
-    listener: (
-      store: TypedStore<Schema>,
-      tableId: Id,
-      rowId: Id,
-      hasRow: boolean
-    ) => void,
+    listener: (store: any, tableId: Id, rowId: Id, hasRow: boolean) => void,
     mutator?: boolean
   ): Id {
     return store.addHasRowListener(
       tableId,
       rowId,
       (_store, changedTableId, changedRowId, hasRow) =>
-        listener(typedStore, changedTableId, changedRowId, hasRow),
+        listener(self, changedTableId, changedRowId, hasRow),
       mutator
     );
   }
@@ -762,7 +763,7 @@ export function createTypedStore<Schema extends StoreSchema>(
     rowId: IdOrNull,
     cellId: IdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: any,
       tableId: Id,
       rowId: Id,
       cellId: Id,
@@ -775,13 +776,7 @@ export function createTypedStore<Schema extends StoreSchema>(
       rowId,
       cellId,
       (_store, changedTableId, changedRowId, changedCellId, hasCell) =>
-        listener(
-          typedStore,
-          changedTableId,
-          changedRowId,
-          changedCellId,
-          hasCell
-        ),
+        listener(self, changedTableId, changedRowId, changedCellId, hasCell),
       mutator
     );
   }
@@ -791,7 +786,7 @@ export function createTypedStore<Schema extends StoreSchema>(
     rowId: IdOrNull,
     cellId: IdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: any,
       tableId: Id,
       rowId: Id,
       cellId: Id,
@@ -844,7 +839,7 @@ export function createTypedStore<Schema extends StoreSchema>(
           };
         }
         listener(
-          typedStore,
+          self,
           tableId,
           rowId,
           cellId,
@@ -857,7 +852,11 @@ export function createTypedStore<Schema extends StoreSchema>(
     );
   }
 
-  const typedStore = {
+  const asReadonly = () => self as unknown as ReadonlyTypedStore<Schema>;
+
+  const api = {
+    untyped: store,
+    asReadonly,
     getTables,
     setTables,
     delTables,
@@ -916,7 +915,8 @@ export function createTypedStore<Schema extends StoreSchema>(
     addHasRowListener,
     addHasCellListener,
     addCellListener,
-  } as unknown as TypedStore<Schema>;
+  };
 
-  return typedStore;
+  self = api;
+  return api as unknown as TypedStore<Schema>;
 }

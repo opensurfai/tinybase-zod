@@ -4,6 +4,7 @@ import type {
   Id,
   IdOrNull,
   Json,
+  Store,
   SortedRowIdsArgs,
 } from "tinybase";
 import z from "zod";
@@ -123,10 +124,11 @@ type CellOrUnionOf<
 
 type CellListener<
   Schema extends StoreSchema,
+  Self,
   TableIdOrNull extends TableIdOfOrNull<Schema>,
   CellIdOrNull extends CellIdOrUnionOfOrNull<Schema, TableIdOrNull>
 > = (
-  store: TypedStore<Schema>,
+  store: Self,
   tableId: ResolveTableId<Schema, TableIdOrNull>,
   rowId: Id,
   cellId: ResolveCellId<Schema, TableIdOrNull, CellIdOrNull>,
@@ -183,21 +185,16 @@ type ValueOrUnionOf<
   ? ValueOf<Schema, ValueIdOrNull>
   : AnyValueInSchema<Schema>;
 
-export interface TypedStore<Schema extends StoreSchema> {
+interface StoreReadApi<
+  Schema extends StoreSchema,
+  Self,
+  MutatorFlag extends boolean | undefined
+> {
   getTables(): Partial<TablesOf<Schema>>;
-  setTables(tables: Partial<TablesOf<Schema>>): TypedStore<Schema>;
-  delTables(): TypedStore<Schema>;
 
   getTable<TableId extends TableIdOf<Schema>>(
     tableId: TableId
   ): TableOf<Schema, TableId>;
-  setTable<TableId extends TableIdOf<Schema>>(
-    tableId: TableId,
-    table: TableOf<Schema, TableId>
-  ): TypedStore<Schema>;
-  delTable<TableId extends TableIdOf<Schema>>(
-    tableId: TableId
-  ): TypedStore<Schema>;
   getRow<TableId extends TableIdOf<Schema>>(
     tableId: TableId,
     rowId: Id
@@ -206,20 +203,6 @@ export interface TypedStore<Schema extends StoreSchema> {
     tableId: TableId,
     rowId: Id
   ): RowOf<Schema, TableId>;
-  setRow<TableId extends TableIdOf<Schema>>(
-    tableId: TableId,
-    rowId: Id,
-    row: RowOf<Schema, TableId>
-  ): TypedStore<Schema>;
-  setPartialRow<TableId extends TableIdOf<Schema>>(
-    tableId: TableId,
-    rowId: Id,
-    row: Partial<RowOf<Schema, TableId>>
-  ): TypedStore<Schema>;
-  delRow<TableId extends TableIdOf<Schema>>(
-    tableId: TableId,
-    rowId: Id
-  ): TypedStore<Schema>;
   getCell<
     TableId extends TableIdOf<Schema>,
     CellId extends CellIdOf<Schema, TableId>
@@ -228,35 +211,16 @@ export interface TypedStore<Schema extends StoreSchema> {
     rowId: Id,
     cellId: CellId
   ): CellOf<Schema, TableId, CellId> | undefined;
-  setCell<
-    TableId extends TableIdOf<Schema>,
-    CellId extends CellIdOf<Schema, TableId>,
-    Cell extends CellOf<Schema, TableId, CellId>,
-    MapCell extends (cell: Cell | undefined) => Cell
-  >(
-    tableId: TableId,
-    rowId: Id,
-    cellId: CellId,
-    cell: Cell | MapCell
-  ): TypedStore<Schema>;
-  delCell<
-    TableId extends TableIdOf<Schema>,
-    CellId extends CellIdOf<Schema, TableId>
-  >(
-    tableId: TableId,
-    rowId: Id,
-    cellId: CellId
-  ): TypedStore<Schema>;
   addCellListener<
     TableIdOrNull extends TableIdOfOrNull<Schema>,
     CellIdOrNull extends CellIdOrUnionOfOrNull<Schema, TableIdOrNull>,
-    Listener extends CellListener<Schema, TableIdOrNull, CellIdOrNull>
+    Listener extends CellListener<Schema, Self, TableIdOrNull, CellIdOrNull>
   >(
     tableId: TableIdOrNull,
     rowId: IdOrNull,
     cellId: CellIdOrNull,
     listener: Listener,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
   hasTables(): boolean;
   hasTable<TableId extends TableIdOf<Schema>>(tableId: TableId): boolean;
@@ -292,117 +256,99 @@ export interface TypedStore<Schema extends StoreSchema> {
   ): Id[];
   getSortedRowIds(args: SortedRowIdsArgs): Id[];
 
-  transaction<Return>(actions: () => Return, doRollback?: DoRollback): Return;
-  startTransaction(): TypedStore<Schema>;
-  finishTransaction(doRollback?: DoRollback): TypedStore<Schema>;
-
-  callListener(listenerId: Id): TypedStore<Schema>;
-  delListener(listenerId: Id): TypedStore<Schema>;
+  callListener(listenerId: Id): Self;
+  delListener(listenerId: Id): Self;
 
   getJson(): Json;
-  setJson(tablesAndValuesJson: Json): TypedStore<Schema>;
 
   getValues(): Partial<ValuesOf<Schema>>;
-  setValues(values: Partial<ValuesOf<Schema>>): TypedStore<Schema>;
-  delValues(): TypedStore<Schema>;
 
   getValue<ValueId extends ValueIdOf<Schema>>(
     valueId: ValueId
   ): ValueOf<Schema, ValueId> | undefined;
-  setValue<
-    ValueId extends ValueIdOf<Schema>,
-    Value extends ValueOf<Schema, ValueId>,
-    MapValue extends (value: Value | undefined) => Value
-  >(
-    valueId: ValueId,
-    value: Value | MapValue
-  ): TypedStore<Schema>;
-  delValue<ValueId extends ValueIdOf<Schema>>(
-    valueId: ValueId
-  ): TypedStore<Schema>;
 
   hasValues(): boolean;
   hasValue<ValueId extends ValueIdOf<Schema>>(valueId: ValueId): boolean;
   getValueIds(): ValueIdOf<Schema>[];
 
   addValuesListener(
-    listener: (store: TypedStore<Schema>) => void,
-    mutator?: boolean
+    listener: (store: Self) => void,
+    mutator?: MutatorFlag
   ): Id;
 
   addValueListener<ValueIdOrNull extends ValueIdOfOrNull<Schema>>(
     valueId: ValueIdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       valueId: ResolveValueId<Schema, ValueIdOrNull>,
       newValue: ValueOrUnionOf<Schema, ValueIdOrNull>,
       oldValue: ValueOrUnionOf<Schema, ValueIdOrNull>,
       getValueChange: unknown
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addValueIdsListener(
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       getIdChanges: GetIdChanges | undefined
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addHasValuesListener(
-    listener: (store: TypedStore<Schema>, hasValues: boolean) => void,
-    mutator?: boolean
+    listener: (store: Self, hasValues: boolean) => void,
+    mutator?: MutatorFlag
   ): Id;
 
   addHasValueListener<ValueIdOrNull extends ValueIdOfOrNull<Schema>>(
     valueId: ValueIdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       valueId: ResolveValueId<Schema, ValueIdOrNull>,
       hasValue: boolean
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addTableIdsListener(
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       getIdChanges: GetIdChanges | undefined
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addTableCellIdsListener<TableIdOrNull extends TableIdOfOrNull<Schema>>(
     tableId: TableIdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: TableIdOf<Schema>,
       getIdChanges: GetIdChanges | undefined
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addRowIdsListener<TableIdOrNull extends TableIdOfOrNull<Schema>>(
     tableId: TableIdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: ResolveTableId<Schema, TableIdOrNull>,
       getIdChanges: GetIdChanges | undefined
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addCellIdsListener<TableIdOrNull extends TableIdOfOrNull<Schema>>(
     tableId: TableIdOrNull,
     rowId: IdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: TableIdOf<Schema>,
       rowId: Id,
       getIdChanges: GetIdChanges | undefined
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addSortedRowIdsListener<TableId extends TableIdOf<Schema>>(
@@ -412,7 +358,7 @@ export interface TypedStore<Schema extends StoreSchema> {
     offset: number,
     limit: number | undefined,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: TableId,
       cellId: CellIdOf<Schema, TableId> | undefined,
       descending: boolean,
@@ -420,12 +366,12 @@ export interface TypedStore<Schema extends StoreSchema> {
       limit: number | undefined,
       sortedRowIds: Id[]
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
   addSortedRowIdsListener<TableId extends TableIdOf<Schema>>(
     args: SortedRowIdsArgs,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: TableId,
       cellId: CellIdOf<Schema, TableId> | undefined,
       descending: boolean,
@@ -433,34 +379,34 @@ export interface TypedStore<Schema extends StoreSchema> {
       limit: number | undefined,
       sortedRowIds: Id[]
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addHasTablesListener(
-    listener: (store: TypedStore<Schema>, hasTables: boolean) => void,
-    mutator?: boolean
+    listener: (store: Self, hasTables: boolean) => void,
+    mutator?: MutatorFlag
   ): Id;
 
   addHasTableListener<TableIdOrNull extends TableIdOfOrNull<Schema>>(
     tableId: TableIdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: ResolveTableId<Schema, TableIdOrNull>,
       hasTable: boolean
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addHasRowListener<TableIdOrNull extends TableIdOfOrNull<Schema>>(
     tableId: TableIdOrNull,
     rowId: IdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: ResolveTableId<Schema, TableIdOrNull>,
       rowId: Id,
       hasRow: boolean
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addHasCellListener<
@@ -471,37 +417,105 @@ export interface TypedStore<Schema extends StoreSchema> {
     rowId: IdOrNull,
     cellId: CellIdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: ResolveTableId<Schema, TableIdOrNull>,
       rowId: Id,
       cellId: ResolveCellId<Schema, TableIdOrNull, CellIdOrNull>,
       hasCell: boolean
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addTablesListener(
-    listener: (store: TypedStore<Schema>) => void,
-    mutator?: boolean
+    listener: (store: Self) => void,
+    mutator?: MutatorFlag
   ): Id;
 
   addTableListener<TableIdOrNull extends TableIdOfOrNull<Schema>>(
     tableId: TableIdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: ResolveTableId<Schema, TableIdOrNull>
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
 
   addRowListener<TableIdOrNull extends TableIdOfOrNull<Schema>>(
     tableId: TableIdOrNull,
     rowId: IdOrNull,
     listener: (
-      store: TypedStore<Schema>,
+      store: Self,
       tableId: ResolveTableId<Schema, TableIdOrNull>,
       rowId: Id
     ) => void,
-    mutator?: boolean
+    mutator?: MutatorFlag
   ): Id;
+}
+
+interface StoreWriteApi<Schema extends StoreSchema, Self> {
+  setTables(tables: Partial<TablesOf<Schema>>): Self;
+  delTables(): Self;
+  setTable<TableId extends TableIdOf<Schema>>(
+    tableId: TableId,
+    table: TableOf<Schema, TableId>
+  ): Self;
+  delTable<TableId extends TableIdOf<Schema>>(tableId: TableId): Self;
+  setRow<TableId extends TableIdOf<Schema>>(
+    tableId: TableId,
+    rowId: Id,
+    row: RowOf<Schema, TableId>
+  ): Self;
+  setPartialRow<TableId extends TableIdOf<Schema>>(
+    tableId: TableId,
+    rowId: Id,
+    row: Partial<RowOf<Schema, TableId>>
+  ): Self;
+  delRow<TableId extends TableIdOf<Schema>>(tableId: TableId, rowId: Id): Self;
+  setCell<
+    TableId extends TableIdOf<Schema>,
+    CellId extends CellIdOf<Schema, TableId>,
+    Cell extends CellOf<Schema, TableId, CellId>,
+    MapCell extends (cell: Cell | undefined) => Cell
+  >(
+    tableId: TableId,
+    rowId: Id,
+    cellId: CellId,
+    cell: Cell | MapCell
+  ): Self;
+  delCell<TableId extends TableIdOf<Schema>, CellId extends CellIdOf<Schema, TableId>>(
+    tableId: TableId,
+    rowId: Id,
+    cellId: CellId
+  ): Self;
+
+  transaction<Return>(actions: () => Return, doRollback?: DoRollback): Return;
+  startTransaction(): Self;
+  finishTransaction(doRollback?: DoRollback): Self;
+
+  setJson(tablesAndValuesJson: Json): Self;
+
+  setValues(values: Partial<ValuesOf<Schema>>): Self;
+  delValues(): Self;
+  setValue<
+    ValueId extends ValueIdOf<Schema>,
+    Value extends ValueOf<Schema, ValueId>,
+    MapValue extends (value: Value | undefined) => Value
+  >(
+    valueId: ValueId,
+    value: Value | MapValue
+  ): Self;
+  delValue<ValueId extends ValueIdOf<Schema>>(valueId: ValueId): Self;
+}
+
+export interface TypedStore<Schema extends StoreSchema>
+  extends StoreReadApi<Schema, TypedStore<Schema>, boolean | undefined>,
+    StoreWriteApi<Schema, TypedStore<Schema>> {
+  untyped: Store;
+  asReadonly(): ReadonlyTypedStore<Schema>;
+}
+
+export interface ReadonlyTypedStore<Schema extends StoreSchema>
+  extends StoreReadApi<Schema, ReadonlyTypedStore<Schema>, false | undefined> {
+  untyped: Store;
+  asReadonly(): ReadonlyTypedStore<Schema>;
 }
