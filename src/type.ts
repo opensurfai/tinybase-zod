@@ -4,6 +4,7 @@ import type {
   Id,
   IdOrNull,
   Json,
+  MergeableStore,
   Store,
   SortedRowIdsArgs,
 } from "tinybase";
@@ -158,6 +159,11 @@ type ValuesOf<Schema extends StoreSchema> =
   Schema["values"] extends StoreValuesSchema
     ? z.infer<Schema["values"]>
     : Record<string, unknown>;
+
+export type ContentOf<Schema extends StoreSchema> = [
+  tables: Partial<TablesOf<Schema>>,
+  values: Partial<ValuesOf<Schema>>
+];
 
 type ValueOf<
   Schema extends StoreSchema,
@@ -461,6 +467,7 @@ interface StoreReadApi<
 }
 
 interface StoreWriteApi<Schema extends StoreSchema, Self> {
+  setContent(content: ContentOf<Schema> | (() => ContentOf<Schema>)): Self;
   setTables(tables: Partial<TablesOf<Schema>>): Self;
   delTables(): Self;
   setTable<TableId extends TableIdOf<Schema>>(
@@ -526,6 +533,15 @@ export interface TypedStore<
     StoreWriteApi<Schema, TypedStore<Schema, UntypedStore>> {
   untyped: UntypedStore;
   asReadonly(): ReadonlyTypedStore<Schema, UntypedStore>;
+}
+
+export interface MergeableTypedStore<
+  Schema extends StoreSchema,
+  UntypedStore extends MergeableStore = MergeableStore
+> extends TypedStore<Schema, UntypedStore> {
+  setDefaultContent(
+    content: ContentOf<Schema> | (() => ContentOf<Schema>)
+  ): MergeableTypedStore<Schema, UntypedStore>;
 }
 
 export interface ReadonlyTypedStore<

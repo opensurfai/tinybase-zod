@@ -2,6 +2,7 @@ import { expectTypeOf, test } from "bun:test";
 import { createStore, type MergeableStore, type Store } from "tinybase";
 import z from "zod";
 import { createReadonlyTypedStore, createTypedStore } from "./store";
+import type { ContentOf, MergeableTypedStore } from "./type";
 
 const schema = {
   tables: {
@@ -34,6 +35,16 @@ test("ReadonlyTypedStore type surface", () => {
     const roMergeable = createReadonlyTypedStore(mergeable, schema);
     expectTypeOf(typedMergeable.untyped).toEqualTypeOf<MergeableStore>();
     expectTypeOf(roMergeable.untyped).toEqualTypeOf<MergeableStore>();
+
+    // setDefaultContent is only available when the underlying store is mergeable.
+    expectTypeOf(typedMergeable).toEqualTypeOf<
+      MergeableTypedStore<typeof schema, MergeableStore>
+    >();
+    expectTypeOf(typedMergeable.setDefaultContent).toEqualTypeOf<
+      (
+        content: ContentOf<typeof schema> | (() => ContentOf<typeof schema>)
+      ) => MergeableTypedStore<typeof schema, MergeableStore>
+    >();
   }
 
   // listener callbacks receive the readonly store
@@ -41,12 +52,19 @@ test("ReadonlyTypedStore type surface", () => {
     expectTypeOf(store).toEqualTypeOf<typeof ro>();
   });
 
+  // setContent is available on writable typed stores
+  expectTypeOf(typed.setContent).toEqualTypeOf<
+    (content: ContentOf<typeof schema> | (() => ContentOf<typeof schema>)) => any
+  >();
+
   if (false) {
     // writes are not part of the readonly surface
     // @ts-expect-error readonly store has no setRow
     ro.setRow("users", "u1", { name: "Ava", age: 34 });
     // @ts-expect-error readonly store has no setValue
     ro.setValue("selectedUserId", "u1");
+    // @ts-expect-error readonly store has no setContent
+    ro.setContent([{ users: {} }, { selectedUserId: null }]);
 
     // mutator listeners are disallowed at the type level
     // @ts-expect-error mutator must be false/undefined on readonly stores

@@ -6,13 +6,20 @@ import {
   type Id,
   type IdOrNull,
   type Json,
+  type MergeableStore,
   type Row,
   type SortedRowIdsArgs,
   type Store,
   type Table,
 } from "tinybase";
 import { z } from "zod";
-import type { ReadonlyTypedStore, StoreSchema, TypedStore } from "./type";
+import type {
+  ContentOf,
+  MergeableTypedStore,
+  ReadonlyTypedStore,
+  StoreSchema,
+  TypedStore,
+} from "./type";
 
 export { json } from "./codec";
 
@@ -66,12 +73,17 @@ function encodeTable(
 
 export function createTypedStore<
   Schema extends StoreSchema,
+  UntypedStore extends MergeableStore
+>(store: UntypedStore, schema: Schema): MergeableTypedStore<Schema, UntypedStore>;
+export function createTypedStore<
+  Schema extends StoreSchema,
   UntypedStore extends Store = Store
->(store: UntypedStore, schema: Schema): TypedStore<Schema, UntypedStore> {
-  return createTypedStoreInternal(store, schema) as TypedStore<
-    Schema,
-    UntypedStore
-  >;
+>(store: UntypedStore, schema: Schema): TypedStore<Schema, UntypedStore>;
+export function createTypedStore<
+  Schema extends StoreSchema,
+  UntypedStore extends Store = Store
+>(store: UntypedStore, schema: Schema) {
+  return createTypedStoreInternal(store, schema);
 }
 
 export function createReadonlyTypedStore<
@@ -94,6 +106,45 @@ function createTypedStoreInternal<
 >(store: UntypedStore, schema: Schema) {
   const mapped = schema;
   let self: any;
+
+  const encodeValuesObject = (values: Record<string, unknown>) => {
+    const encoded: Record<string, unknown> = {};
+    for (const [valueId, value] of Object.entries(values)) {
+      const valueSchema = tryGetValueSchema(valueId);
+      if (!valueSchema) {
+        continue;
+      }
+      const encodedValue = valueSchema.encode(value);
+      assertStorageCell(encodedValue, `values.${valueId}`);
+      if (encodedValue !== undefined) {
+        encoded[valueId] = encodedValue;
+      }
+    }
+    return encoded;
+  };
+
+  const encodeTablesObject = (tables: Record<string, unknown>) => {
+    const encoded: Record<string, Table> = {};
+    for (const [tableId, table] of Object.entries(tables)) {
+      const schema = mapped.tables[tableId];
+      if (!schema) {
+        continue;
+      }
+      const encodedTable = z
+        .record(z.string(), schema)
+        .encode(table as any) as Record<string, Record<string, unknown>>;
+      encoded[tableId] = encodeTable(encodedTable, `tables.${tableId}`);
+    }
+    return encoded;
+  };
+
+  const encodeContent = (c: ContentOf<Schema>) => {
+    const [tables, values] = c ?? ([{}, {}] as any);
+    return [
+      encodeTablesObject((tables ?? {}) as any),
+      encodeValuesObject((values ?? {}) as any),
+    ] as const;
+  };
 
   function getRowSchema(tableId: Id) {
     const schema = mapped.tables[tableId as string];
@@ -348,6 +399,33 @@ function createTypedStoreInternal<
 
   function setJson(tablesAndValuesJson: Json) {
     store.setJson(tablesAndValuesJson);
+    return self;
+  }
+
+  function setContent(content: ContentOf<Schema> | (() => ContentOf<Schema>)) {
+    if (typeof content === "function") {
+      store.setContent(() => encodeContent(content()) as any);
+    } else {
+      store.setContent(encodeContent(content) as any);
+    }
+    return self;
+  }
+
+  function setDefaultContent(content: ContentOf<Schema> | (() => ContentOf<Schema>)) {
+    const mergeable = store as unknown as {
+      setDefaultContent?: (content: unknown) => unknown;
+    };
+    if (typeof mergeable.setDefaultContent !== "function") {
+      throw new Error(
+        "setDefaultContent is only available on TinyBase MergeableStore instances."
+      );
+    }
+
+    if (typeof content === "function") {
+      mergeable.setDefaultContent(() => encodeContent(content()));
+    } else {
+      mergeable.setDefaultContent(encodeContent(content));
+    }
     return self;
   }
 
@@ -899,6 +977,8 @@ function createTypedStoreInternal<
     delListener,
     getJson,
     setJson,
+    setContent,
+    setDefaultContent,
     getValues,
     setValues,
     delValues,

@@ -103,6 +103,7 @@ A `StoreSchema` is:
 - **Tables** are encoded/decoded via `z.record(z.string(), rowSchema)`.
 - `getTable`, `getRow`, `getCell`, `getValue` return decoded values.
 - `setTable`, `setRow`, `setCell`, `setValue` encode before writing.
+- `setContent([tables, values])` encodes both parts and replaces the store content (see TinyBase docs: [`setContent`](https://tinybase.org/api/store/interfaces/store/store/methods/setter/setcontent/)).
 
 On every write, the wrapper validates that encoded cells are storage scalars.
 
@@ -206,6 +207,14 @@ This wrapper intentionally avoids a common TinyBase behavior: **creating/patchin
 ### Underlying storage is not your runtime shape
 
 If you access the underlying TinyBase `store` directly, you’ll see encoded storage values (for example JSON strings), not decoded runtime objects.
+
+## MergeableStore support
+
+If your underlying store is a TinyBase `MergeableStore`, the typed wrapper exposes:
+
+- `typed.setDefaultContent([tables, values])` (and the function form)
+
+It accepts **typed content** (decoded shapes) and encodes it according to your schema before forwarding to the underlying TinyBase method. See TinyBase docs: [`setDefaultContent`](https://tinybase.org/api/mergeable-store/interfaces/mergeable/mergeablestore/methods/setter/setdefaultcontent/).
 
 ## Zod limitations / gotchas
 
