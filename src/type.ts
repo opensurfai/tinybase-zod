@@ -265,7 +265,7 @@ interface StoreReadApi<
 
   getValue<ValueId extends ValueIdOf<Schema>>(
     valueId: ValueId
-  ): ValueOf<Schema, ValueId> | undefined;
+  ): ValueOf<Schema, ValueId>;
 
   hasValues(): boolean;
   hasValue<ValueId extends ValueIdOf<Schema>>(valueId: ValueId): boolean;
@@ -281,9 +281,17 @@ interface StoreReadApi<
     listener: (
       store: Self,
       valueId: ResolveValueId<Schema, ValueIdOrNull>,
-      newValue: ValueOrUnionOf<Schema, ValueIdOrNull>,
-      oldValue: ValueOrUnionOf<Schema, ValueIdOrNull>,
-      getValueChange: unknown
+      newValue: ValueOrUnionOf<Schema, ValueIdOrNull> | undefined,
+      oldValue: ValueOrUnionOf<Schema, ValueIdOrNull> | undefined,
+      getValueChange:
+        | ((
+            valueId: ResolveValueId<Schema, ValueIdOrNull>
+          ) => [
+            changed: boolean,
+            oldValue: ValueOrUnionOf<Schema, ValueIdOrNull> | undefined,
+            newValue: ValueOrUnionOf<Schema, ValueIdOrNull> | undefined
+          ])
+        | undefined
     ) => void,
     mutator?: MutatorFlag
   ): Id;

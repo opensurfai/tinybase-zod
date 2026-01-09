@@ -113,6 +113,16 @@ On every write, the wrapper validates that encoded cells are storage scalars.
 
 This means you can model “optional deletes” using codecs that sometimes encode to `undefined`.
 
+### 3a) Values: `getValue` matches the Zod schema type
+
+`getValue(valueId)` returns **exactly what your Zod schema describes** for that value id:
+
+- If the value schema is **required** (for example `z.string()`), calling `getValue` when the underlying store value is missing will **throw** a Zod error.
+- If the value schema is **optional** (`z.string().optional()`), missing values return `undefined`.
+- If the value schema has a **default** (`z.string().default("x")`), missing values return the default.
+
+This removes the extra `| undefined` that was previously added by the typed wrapper.
+
 ### 4) Listener payloads are decoded
 
 Listener callbacks wrap the underlying TinyBase listener and:

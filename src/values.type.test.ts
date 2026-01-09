@@ -21,17 +21,27 @@ test("values api types", () => {
 
   const typed = createTypedStore(store, schema);
 
-  expectTypeOf(typed.getValue("str")).toEqualTypeOf<string | undefined>();
-  expectTypeOf(typed.getValue("maybe")).toEqualTypeOf<
-    string | null | undefined
-  >();
-  expectTypeOf(typed.getValue("num")).toEqualTypeOf<number | undefined>();
-  expectTypeOf(typed.getValue("flag")).toEqualTypeOf<boolean | undefined>();
-  expectTypeOf(typed.getValue("obj")).toEqualTypeOf<
-    { a: string } | undefined
-  >();
-  expectTypeOf(typed.getValue("arr")).toEqualTypeOf<string[] | undefined>();
+  // Seed runtime values so `getValue` doesn't throw for required schemas.
+  // (These tests are about types, but Bun evaluates the expressions.)
+  typed.setValue("str", "s");
+  typed.setValue("maybe", null);
+  typed.setValue("num", 1);
+  typed.setValue("flag", true);
+  typed.setValue("obj", { a: "x" });
+  typed.setValue("arr", ["a"]);
 
+  expectTypeOf(typed.getValue("str")).toEqualTypeOf<string>();
+  expectTypeOf(typed.getValue("maybe")).toEqualTypeOf<
+    string | null
+  >();
+  expectTypeOf(typed.getValue("num")).toEqualTypeOf<number>();
+  expectTypeOf(typed.getValue("flag")).toEqualTypeOf<boolean>();
+  expectTypeOf(typed.getValue("obj")).toEqualTypeOf<
+    { a: string }
+  >();
+  expectTypeOf(typed.getValue("arr")).toEqualTypeOf<string[]>();
+
+  // Re-set is fine; this keeps the rest of the test structure unchanged.
   typed.setValue("str", "s");
   typed.setValue("maybe", null);
   typed.setValue("num", 1);
@@ -84,10 +94,10 @@ test("addValueListener types (wildcard + specific)", () => {
         "str" | "maybe" | "num" | "flag" | "obj" | "arr"
       >();
       expectTypeOf(newValue).toEqualTypeOf<
-        string | null | number | boolean | { a: string } | string[]
+        string | null | number | boolean | { a: string } | string[] | undefined
       >();
       expectTypeOf(oldValue).toEqualTypeOf<
-        string | null | number | boolean | { a: string } | string[]
+        string | null | number | boolean | { a: string } | string[] | undefined
       >();
     });
 
@@ -101,8 +111,8 @@ test("addValueListener types (wildcard + specific)", () => {
     typed.addValueListener("str", (_store, valueId, newValue, oldValue) => {
       ran++;
       expectTypeOf(valueId).toEqualTypeOf<"str">();
-      expectTypeOf(newValue).toEqualTypeOf<string>();
-      expectTypeOf(oldValue).toEqualTypeOf<string>();
+      expectTypeOf(newValue).toEqualTypeOf<string | undefined>();
+      expectTypeOf(oldValue).toEqualTypeOf<string | undefined>();
     });
 
     typed.setValue("str", "y");

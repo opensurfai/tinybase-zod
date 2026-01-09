@@ -27,7 +27,7 @@ function setup() {
 test("getValue/setValue/delValue (primitive + complex encoding)", () => {
   const { store, typed } = setup();
 
-  expect(typed.getValue("str")).toBe(undefined);
+  expect(() => typed.getValue("str")).toThrow();
 
   typed.setValue("str", "s");
   expect(typed.getValue("str")).toBe("s");
@@ -44,7 +44,7 @@ test("getValue/setValue/delValue (primitive + complex encoding)", () => {
   expect(typed.hasValue("str")).toBe(true);
   typed.delValue("str");
   expect(typed.hasValue("str")).toBe(false);
-  expect(typed.getValue("str")).toBe(undefined);
+  expect(() => typed.getValue("str")).toThrow();
 });
 
 test("setValue mapper receives decoded value and encodes return", () => {

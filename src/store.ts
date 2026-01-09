@@ -387,14 +387,18 @@ function createTypedStoreInternal<
   }
 
   function getValue(valueId: Id) {
-    const value = store.getValue(valueId);
-    if (value === undefined) {
-      return undefined;
-    }
     const valueSchema = tryGetValueSchema(valueId);
     // If schema is present, ignore unknown value ids (Option A).
     if (!valueSchema) {
       return undefined;
+    }
+    const value = store.getValue(valueId);
+    if (value === undefined) {
+      // Match the Zod schema contract:
+      // - optional schemas return undefined
+      // - default schemas return the default
+      // - required schemas throw (unless they accept undefined)
+      return valueSchema.decode(undefined);
     }
     return valueSchema.decode(value);
   }
