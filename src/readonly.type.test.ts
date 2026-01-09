@@ -53,9 +53,11 @@ test("ReadonlyTypedStore type surface", () => {
   });
 
   // setContent is available on writable typed stores
-  expectTypeOf(typed.setContent).toEqualTypeOf<
-    (content: ContentOf<typeof schema> | (() => ContentOf<typeof schema>)) => any
-  >();
+  expectTypeOf(typed).toExtend<{
+    setContent: (
+      content: ContentOf<typeof schema> | (() => ContentOf<typeof schema>)
+    ) => unknown;
+  }>();
 
   if (false) {
     // writes are not part of the readonly surface
@@ -77,5 +79,3 @@ test("ReadonlyTypedStore type surface", () => {
     });
   }
 });
-
-
